@@ -1,0 +1,73 @@
+{
+  "name": "Release notes \u00b7 clean handoff",
+  "scenario": "baseline",
+  "synthetic": true,
+  "budget": {
+    "steps": 4,
+    "cost": 0.08
+  },
+  "expected": [
+    "sources_verified",
+    "delivery_confirmed"
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "kind": "note",
+      "text": "Inspect release sources before preparing the handoff."
+    },
+    {
+      "seq": 2,
+      "kind": "tool_call",
+      "text": "Read the synthetic release manifest.",
+      "call_id": "read-1",
+      "tool": "manifest.read",
+      "cost": 0.012
+    },
+    {
+      "seq": 3,
+      "kind": "tool_result",
+      "text": "Three release entries verified against the fixture.",
+      "call_id": "read-1",
+      "success": true
+    },
+    {
+      "seq": 4,
+      "kind": "outcome",
+      "text": "Source manifest verified.",
+      "evidence": "sources_verified",
+      "success": true
+    },
+    {
+      "seq": 5,
+      "kind": "consent",
+      "text": "Recorded synthetic operator consent for this request.",
+      "request_id": "release-42"
+    },
+    {
+      "seq": 6,
+      "kind": "tool_call",
+      "text": "Simulate delivery of release summary.",
+      "call_id": "send-1",
+      "tool": "notification.send",
+      "request_id": "release-42",
+      "side_effect": true,
+      "cost": 0.024
+    },
+    {
+      "seq": 7,
+      "kind": "tool_result",
+      "text": "Synthetic delivery accepted.",
+      "call_id": "send-1",
+      "success": true,
+      "effect_id": "delivery-1"
+    },
+    {
+      "seq": 8,
+      "kind": "outcome",
+      "text": "Delivery receipt recorded.",
+      "evidence": "delivery_confirmed",
+      "success": true
+    }
+  ]
+}
