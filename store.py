@@ -12,7 +12,9 @@ class Store:
             columns={r[1] for r in db.execute('PRAGMA table_info(runs)')}
             for name,definition in [('metadata',"TEXT NOT NULL DEFAULT '{}'"),('cursor','INTEGER NOT NULL DEFAULT 0')]:
                 if name not in columns:db.execute(f'ALTER TABLE runs ADD COLUMN {name} {definition}')
-            db.execute('PRAGMA user_version=2')
+            db.execute('CREATE TABLE IF NOT EXISTS suites(id TEXT PRIMARY KEY,name TEXT NOT NULL,dataset TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS suite_history(id TEXT PRIMARY KEY,suite_id TEXT NOT NULL,created TEXT NOT NULL,result TEXT NOT NULL,baseline_id TEXT)')
+            db.execute('PRAGMA user_version=3')
     @contextmanager
     def connect(self):
         db=sqlite3.connect(self.path)
@@ -55,3 +57,38 @@ class Store:
         if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=100:raise ValueError('Invalid pagination')
         rows=[r for r in self.list() if r['metadata']['archived']==archived and (not starred or r['metadata']['starred']) and (not tag or tag in r['metadata']['tags']) and query.casefold() in (r['trace']['name']+' '+r['metadata']['notes']+' '+' '.join(r['metadata']['tags'])).casefold()]
         return {'items':rows[offset:offset+limit],'total':len(rows),'offset':offset,'limit':limit}
+
+    def save_suite(self,dataset,suite_id=None):
+        from suites import run_suite
+        run_suite(dataset)
+        suite_id=suite_id or uuid.uuid4().hex[:12]
+        with self.connect() as db:db.execute('INSERT INTO suites VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,dataset=excluded.dataset',(suite_id,dataset['name'],json.dumps(dataset,allow_nan=False)))
+        return self.get_suite(suite_id)
+    def get_suite(self,suite_id):
+        with self.connect() as db:row=db.execute('SELECT id,dataset FROM suites WHERE id=?',(suite_id,)).fetchone()
+        return {'id':row[0],'dataset':json.loads(row[1])} if row else None
+    def list_suites(self):
+        with self.connect() as db:rows=db.execute('SELECT id,name FROM suites ORDER BY name,id').fetchall()
+        return [{'id':r[0],'name':r[1]} for r in rows]
+    def delete_suite(self,suite_id):
+        with self.connect() as db:return db.execute('DELETE FROM suites WHERE id=?',(suite_id,)).rowcount==1
+    def execute_suite(self,suite_id,baseline_id=None):
+        from suites import run_suite
+        suite=self.get_suite(suite_id)
+        if not suite:return None
+        result=run_suite(suite['dataset'])
+        if baseline_id:
+            baseline=self.suite_execution(baseline_id)
+            if not baseline or baseline['suite_id']!=suite_id:raise ValueError('Baseline must belong to this suite')
+            prior={c['name']:c['pass'] for c in baseline['result']['cases']}
+            result['case_regressions']=[c['name'] for c in result['cases'] if prior.get(c['name']) is True and not c['pass']]
+            result['new_cases']=[c['name'] for c in result['cases'] if c['name'] not in prior]
+        eid=uuid.uuid4().hex[:12]
+        with self.connect() as db:db.execute('INSERT INTO suite_history VALUES(?,?,?,?,?)',(eid,suite_id,datetime.datetime.now(datetime.timezone.utc).isoformat(),json.dumps(result,allow_nan=False),baseline_id))
+        return self.suite_execution(eid)
+    def suite_execution(self,eid):
+        with self.connect() as db:row=db.execute('SELECT id,suite_id,created,result,baseline_id FROM suite_history WHERE id=?',(eid,)).fetchone()
+        return dict(zip(('id','suite_id','created','result','baseline_id'),(row[0],row[1],row[2],json.loads(row[3]),row[4]))) if row else None
+    def suite_history(self,suite_id):
+        with self.connect() as db:ids=[r[0] for r in db.execute('SELECT id FROM suite_history WHERE suite_id=? ORDER BY created DESC,id DESC',(suite_id,))]
+        return [self.suite_execution(eid) for eid in ids]

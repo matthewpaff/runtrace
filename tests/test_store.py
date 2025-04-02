@@ -1,4 +1,4 @@
-﻿import unittest,tempfile,sqlite3,json
+import unittest,tempfile,sqlite3,json
 from pathlib import Path
 from store import Store
 from server import simulate
@@ -10,6 +10,7 @@ class StoreTests(unittest.TestCase):
         p=Path(self.tmp.name)/'old.db'
         with sqlite3.connect(p) as db:
             db.execute('CREATE TABLE runs(id TEXT PRIMARY KEY,created TEXT NOT NULL,trace TEXT NOT NULL)');db.execute('INSERT INTO runs VALUES(?,?,?)',('legacy','2026',json.dumps(simulate('baseline'))))
+        db.close()
         migrated=Store(p).get('legacy');self.assertEqual(migrated['metadata']['tags'],[]);self.assertEqual(migrated['cursor'],0)
     def test_metadata_archive_filter_delete(self):
         r=self.store.save(simulate('baseline'));rid=r['id']
