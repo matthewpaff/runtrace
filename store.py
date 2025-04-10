@@ -106,3 +106,14 @@ class Store:
     def annotations(self,rid):
         with self.connect() as db:rows=db.execute('SELECT seq,note,bookmarked FROM event_notes WHERE run_id=? ORDER BY seq',(rid,)).fetchall()
         return [{'seq':r[0],'note':r[1],'bookmarked':bool(r[2])} for r in rows]
+
+    def fork(self,rid,name,budget=None,policy=None):
+        source=self.get(rid)
+        if not source:return None
+        from copy import deepcopy
+        trace=deepcopy(source['trace']);trace['name']=name
+        if budget is not None:trace['budget']=budget
+        if policy is not None:trace['policy']=policy
+        result=self.save(trace)
+        with self.connect() as db:db.execute('UPDATE runs SET metadata=? WHERE id=?',(json.dumps({'origin_id':rid,'lineage':'inert policy/budget recording fork'}),result['id']))
+        return self.get(result['id'])
