@@ -11,6 +11,7 @@ from evaluation import evaluate
 from store import Store
 from reports import report_json, report_csv, redact
 from suites import run_suite
+from contracts import parse_json
 
 def simulate(scenario,steps=4,cost=.08):
     if scenario not in ('baseline','timeout','rate_limit','duplicate'): raise ValueError('Unknown scenario')
@@ -71,9 +72,10 @@ def serve(port=8763, db_path=None):
             if not self.local_host():return self.send(403,{'error':'Nonlocal Host denied'})
             try:
                 if self.headers.get('Origin') and self.headers['Origin'] != 'http://'+self.headers.get('Host',''): return self.send(403,{'error':'Cross-origin writes denied'})
+                if self.headers.get('Content-Type','').split(';')[0].strip().lower()!='application/json':return self.send(415,{'error':'Content-Type must be application/json'})
                 length=int(self.headers.get('Content-Length','0'))
                 if not 0<length<=MAX_IMPORT: raise ValueError('JSON payload must be 1–262144 bytes')
-                data=json.loads(self.rfile.read(length),parse_constant=lambda x: (_ for _ in ()).throw(ValueError('Nonfinite numbers rejected')))
+                data=parse_json(self.rfile.read(length))
                 path=urlsplit(self.path).path
                 if path=='/api/suite':result=run_suite(data)
                 elif path=='/api/export':
@@ -94,7 +96,7 @@ def serve(port=8763, db_path=None):
                     if result is None:return self.send(404,{'error':'Run not found'})
                 elif path=='/api/import': result=store.save(data)
                 elif path=='/api/simulate':
-                    if not isinstance(data,dict): raise ValueError('Request must be an object')
+                    if not isinstance(data,dict) or set(data)-{'scenario','steps','cost'}: raise ValueError('Invalid simulation request fields')
                     result=store.save(simulate(data.get('scenario'),data.get('steps',4),data.get('cost',.08)))
                 else: return self.send(404,{'error':'Not found'})
                 self.send(201,result)

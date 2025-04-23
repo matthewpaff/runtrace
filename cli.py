@@ -6,13 +6,14 @@ from evaluation import evaluate
 from store import Store
 from reports import report_json,report_csv,compare
 from suites import run_suite
+from contracts import parse_json
 
 MAX_BYTES=262144
 
 def read_json(path):
     with open(path,'rb') as source:raw=source.read(MAX_BYTES+1)
     if len(raw)>MAX_BYTES:raise ValueError('JSON file exceeds 256 KiB')
-    return json.loads(raw.decode('utf-8-sig'),parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Nonfinite JSON number')))
+    return parse_json(raw)
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
