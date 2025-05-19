@@ -92,8 +92,9 @@ class Store:
     def suite_execution(self,eid):
         with self.connect() as db:row=db.execute('SELECT id,suite_id,created,result,baseline_id FROM suite_history WHERE id=?',(eid,)).fetchone()
         return dict(zip(('id','suite_id','created','result','baseline_id'),(row[0],row[1],row[2],json.loads(row[3]),row[4]))) if row else None
-    def suite_history(self,suite_id):
-        with self.connect() as db:ids=[r[0] for r in db.execute('SELECT id FROM suite_history WHERE suite_id=? ORDER BY created DESC,id DESC',(suite_id,))]
+    def suite_history(self,suite_id,offset=0,limit=50):
+        if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=100:raise ValueError('Invalid history pagination')
+        with self.connect() as db:ids=[r[0] for r in db.execute('SELECT id FROM suite_history WHERE suite_id=? ORDER BY created DESC,id DESC LIMIT ? OFFSET ?',(suite_id,limit,offset))]
         return [self.suite_execution(eid) for eid in ids]
 
     def annotate(self,rid,seq,note='',bookmarked=False):
@@ -159,3 +160,12 @@ class Store:
             db.execute('UPDATE runs SET metadata=?,cursor=? WHERE id=?',(json.dumps(meta),cursor,rid))
             for a in annotations:db.execute('INSERT INTO event_notes VALUES(?,?,?,?)',(rid,a['seq'],a['note'],int(a['bookmarked'])))
         return self.get(rid)
+
+    def execution_history(self,offset=0,limit=20,status=None):
+        if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=100:raise ValueError('Invalid history pagination')
+        if status not in (None,'pass','regression'):raise ValueError('Invalid execution status')
+        with self.connect() as db:
+            rows=db.execute('SELECT id FROM suite_history ORDER BY created DESC,id DESC').fetchall()
+        items=[self.suite_execution(row[0]) for row in rows]
+        if status:items=[r for r in items if r['result']['status']==status]
+        return {'items':items[offset:offset+limit],'total':len(items),'offset':offset,'limit':limit}
