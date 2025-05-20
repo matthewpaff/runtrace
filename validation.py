@@ -1,4 +1,4 @@
-﻿"""Versioned, inert trace data contract. No execution is supported."""
+"""Versioned, inert trace data contract. No execution is supported."""
 from decimal import Decimal, InvalidOperation
 from copy import deepcopy
 
@@ -38,7 +38,7 @@ def validate(trace):
     if 'tools' in policy and (not isinstance(policy['tools'],list) or len(policy['tools'])>100 or any(not isinstance(x,str) or not x or len(x)>500 for x in policy['tools'])): raise ValueError('Invalid tool allowlist')
     events=trace.get('events')
     if not isinstance(events,list) or not 1<=len(events)<=1000: raise ValueError('Expected 1–1000 events')
-    pending={}; finished=set()
+    pending={}; finished=set(); cancelled=False
     for i,e in enumerate(events):
         if not isinstance(e,dict) or set(e)-{'seq','kind','text','call_id','tool','request_id','side_effect','cost','evidence','success','effect_id','at_ms','usage','status'}: raise ValueError('Invalid event fields')
         if e.get('seq')!=i+1 or type(e.get('seq')) is not int: raise ValueError('Event sequence must be contiguous and ordered')
@@ -55,7 +55,13 @@ def validate(trace):
             u=e['usage']
             if not isinstance(u,dict) or set(u)!={'input_tokens','output_tokens'} or any(type(n) is not int or not 0<=n<=10000000 for n in u.values()): raise ValueError('Invalid recorded provider usage')
         if 'status' in e and e['status'] not in ('success','error','cancelled','unknown'): raise ValueError('Invalid result status')
+        if 'status' in e and e['kind'] not in ('tool_result','outcome'):raise ValueError('Status belongs only to results and outcomes')
+        if 'status' in e and 'success' in e and (e['status']=='success')!=e['success']:raise ValueError('Conflicting result status and success')
+        if e['kind']=='cancelled':
+            if pending:raise ValueError('Resolve pending calls with cancelled results before cancelling the run')
+            cancelled=True
         if e['kind']=='tool_call':
+            if cancelled:raise ValueError('Tool call after run cancellation')
             cid=e.get('call_id')
             if not cid or cid in pending or cid in finished or not e.get('tool'): raise ValueError('Tool calls require unique call_id and tool')
             pending[cid]=e
