@@ -11,7 +11,7 @@ from evaluation import evaluate
 from store import Store
 from reports import report_json, report_csv, redact, trace_diff, compare
 from suites import run_suite
-from contracts import parse_json
+from contracts import parse_json, query_fields
 
 def simulate(scenario,steps=4,cost=.08):
     if scenario not in ('baseline','timeout','rate_limit','duplicate'): raise ValueError('Unknown scenario')
@@ -52,7 +52,7 @@ def serve(port=8763, db_path=None):
             if path=='/api/runs': return self.send(200,store.list())
             if path=='/api/executions':
                 try:
-                    q=parse_qs(urlsplit(self.path).query)
+                    q=query_fields(urlsplit(self.path).query,{'offset','limit','status'})
                     return self.send(200,store.execution_history(offset=int(q.get('offset',['0'])[0]),limit=int(q.get('limit',['20'])[0]),status=q.get('status',[None])[0]))
                 except ValueError as error:return self.send(400,{'error':str(error)})
             if path=='/api/suites':return self.send(200,store.list_suites())
@@ -68,7 +68,7 @@ def serve(port=8763, db_path=None):
                 return self.send(200,store.annotations(match[1]) if match[2]=='annotations' else store.export_recording(match[1]))
             if path=='/api/search':
                 try:
-                    q=parse_qs(urlsplit(self.path).query)
+                    q=query_fields(urlsplit(self.path).query,{'q','tag','starred','archived','offset','limit'})
                     return self.send(200,store.search(query=q.get('q',[''])[0],tag=q.get('tag',[''])[0],starred=q.get('starred',['false'])[0]=='true',archived=q.get('archived',['false'])[0]=='true',offset=int(q.get('offset',['0'])[0]),limit=int(q.get('limit',['20'])[0])))
                 except ValueError as error:return self.send(400,{'error':str(error)})
             match=re.fullmatch(r'/api/runs/([a-f0-9]{12})(?:/(export))?',path)

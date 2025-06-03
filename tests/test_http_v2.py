@@ -1,4 +1,4 @@
-﻿from contextlib import contextmanager
+from contextlib import contextmanager
 import http.client,json,socket,subprocess,sys,tempfile,time,unittest
 from pathlib import Path
 
@@ -37,3 +37,9 @@ class HTTPV2Tests(unittest.TestCase):
             self.assertEqual(call('/api/runs/000000000000/metadata','{}')[0],404)
             self.assertEqual(call('/api/runs/'+rid+'/delete','{"confirm":true}')[0],201)
             self.assertEqual(call('/api/runs/'+rid)[0],404)
+
+    def test_query_contract_rejects_silent_boolean_and_repeated_fields(self):
+        with local_server() as (call,port):
+            for query in ('starred=yes','archived=1','q=a&q=b','unknown=x','offset=-1','limit=101'):
+                self.assertEqual(call('/api/search?'+query)[0],400,query)
+            self.assertEqual(call('/api/search?starred=true&limit=1')[0],200)
