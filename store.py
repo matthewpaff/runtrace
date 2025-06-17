@@ -145,6 +145,8 @@ class Store:
         if not isinstance(archive,dict) or set(archive)!={'archive_version','trace','metadata','cursor','annotations'} or archive['archive_version']!=1:raise ValueError('Invalid recording archive')
         validate(archive['trace']);meta=archive['metadata'];annotations=archive['annotations'];cursor=archive['cursor']
         if not isinstance(meta,dict) or set(meta)-{'tags','notes','starred','archived','origin_id','lineage'}:raise ValueError('Invalid archive metadata')
+        for key in ('origin_id','lineage'):
+            if key in meta and (not isinstance(meta[key],str) or len(meta[key])>500):raise ValueError('Invalid lineage metadata')
         if not isinstance(annotations,list) or len(annotations)>1000:raise ValueError('Invalid archive annotations')
         # Validate in an isolated transaction-backed temporary database before any real writes.
         import tempfile
@@ -155,9 +157,9 @@ class Store:
             for annotation in annotations:
                 if not isinstance(annotation,dict) or set(annotation)!={'seq','note','bookmarked'} or annotation['seq'] in seen:raise ValueError('Invalid archive annotation')
                 seen.add(annotation['seq']);test.annotate(saved['id'],**annotation)
-        result=self.save(archive['trace']);rid=result['id']
+        rid=uuid.uuid4().hex[:12]
         with self.connect() as db:
-            db.execute('UPDATE runs SET metadata=?,cursor=? WHERE id=?',(json.dumps(meta),cursor,rid))
+            db.execute('INSERT INTO runs(id,created,trace,metadata,cursor) VALUES(?,?,?,?,?)',(rid,datetime.datetime.now(datetime.timezone.utc).isoformat(),json.dumps(migrate(archive['trace']),allow_nan=False),json.dumps(meta),cursor))
             for a in annotations:db.execute('INSERT INTO event_notes VALUES(?,?,?,?)',(rid,a['seq'],a['note'],int(a['bookmarked'])))
         return self.get(rid)
 

@@ -1,4 +1,4 @@
-﻿import unittest,tempfile
+import unittest,tempfile
 from pathlib import Path
 from store import Store
 from server import simulate
@@ -33,3 +33,8 @@ class WorkflowTests(unittest.TestCase):
         before=len(self.store.list())
         with self.assertRaises(ValueError):self.store.import_recording(archive)
         self.assertEqual(len(self.store.list()),before)
+
+    def test_archive_rejects_invalid_lineage_without_partial_insert(self):
+        r=self.store.save(simulate('baseline'));archive=self.store.export_recording(r['id']);archive['metadata']['origin_id']={'unexpected':'object'}
+        with self.assertRaises(ValueError):self.store.import_recording(archive)
+        self.assertEqual(len(self.store.list()),1)
