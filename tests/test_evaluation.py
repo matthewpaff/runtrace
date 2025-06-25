@@ -25,3 +25,13 @@ class EvaluationTests(unittest.TestCase):
     def test_cancelled_result_has_explicit_outcome(self):
         t=simulate('baseline');t['events'][6].pop('success');t['events'][6]['status']='cancelled'
         self.assertEqual(evaluate(t)['outcome'],'cancelled')
+
+    def test_simulated_outcomes_do_not_invent_recorded_usage(self):
+        self.assertEqual(evaluate(simulate('cancelled'))['outcome'],'cancelled')
+        uncertain=evaluate(simulate('unknown'))
+        self.assertFalse(uncertain['checks'][7]['pass'])
+        self.assertFalse(uncertain['usage_recorded'])
+        measured=evaluate(simulate('timed'))
+        self.assertTrue(measured['usage_recorded'])
+        self.assertEqual(measured['recorded_usage']['input_tokens'],140)
+        self.assertEqual(measured['recorded_latencies'][0]['duration_ms'],40)

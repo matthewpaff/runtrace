@@ -14,8 +14,9 @@ from suites import run_suite
 from contracts import parse_json, query_fields
 
 def simulate(scenario,steps=4,cost=.08):
-    if scenario not in ('baseline','timeout','rate_limit','duplicate'): raise ValueError('Unknown scenario')
-    t={'name':{'baseline':'Release notes · clean handoff','timeout':'Release notes · tool timeout','rate_limit':'Release notes · rate limit','duplicate':'Release notes · duplicate delivery'}[scenario],'scenario':scenario,'synthetic':True,'budget':{'steps':steps,'cost':cost},'expected':['sources_verified','delivery_confirmed'],'events':[]}
+    names={'baseline':'Release notes · clean handoff','timeout':'Release notes · tool timeout','rate_limit':'Release notes · rate limit','duplicate':'Release notes · duplicate delivery','cancelled':'Release notes · cancelled delivery','unknown':'Release notes · uncertain delivery','timed':'Release notes · recorded timing and usage'}
+    if scenario not in names: raise ValueError('Unknown scenario')
+    t={'name':names[scenario],'scenario':scenario,'synthetic':True,'budget':{'steps':steps,'cost':cost},'expected':['sources_verified','delivery_confirmed'],'events':[]}
     def emit(kind,text,**kw): t['events'].append(dict(seq=len(t['events'])+1,kind=kind,text=text,**kw))
     emit('note','Inspect release sources before preparing the handoff.')
     emit('tool_call','Read the synthetic release manifest.',call_id='read-1',tool='manifest.read',cost=.012)
@@ -33,6 +34,15 @@ def simulate(scenario,steps=4,cost=.08):
             emit('tool_call','Simulate duplicate delivery.',call_id='send-2',tool='notification.send',request_id='release-42',side_effect=True,cost=.024)
             emit('tool_result','Second synthetic delivery accepted.',call_id='send-2',success=True,effect_id='delivery-2')
         emit('outcome','Delivery receipt recorded.',evidence='delivery_confirmed',success=True)
+    t['schema_version']=2
+    if scenario=='timed':
+        for e in t['events']:e['at_ms']=(e['seq']-1)*40
+        t['events'][2]['usage']={'input_tokens':140,'output_tokens':32}
+    if scenario in ('cancelled','unknown'):
+        result=next(e for e in t['events'] if e.get('call_id')=='send-1' and e['kind']=='tool_result')
+        result.pop('success',None);result.pop('effect_id',None);result['status']=scenario if scenario=='cancelled' else 'unknown'
+        t['events']=[e for e in t['events'] if e.get('evidence')!='delivery_confirmed']
+        if scenario=='cancelled':t['events'].append({'seq':len(t['events'])+1,'kind':'cancelled','text':'Synthetic operator cancelled the delivery; no external action ran.','at_ms':len(t['events'])*40})
     return validate(t)
 
 def serve(port=8763, db_path=None):
