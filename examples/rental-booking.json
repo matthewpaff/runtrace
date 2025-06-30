@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "name": "Rentwise: idempotent sandbox request",
+  "scenario": "local-workflow-integration",
+  "synthetic": true,
+  "budget": {
+    "steps": 8,
+    "cost": "0.00"
+  },
+  "expected": [
+    "intent_deduplicated",
+    "sandbox_reconciled"
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "kind": "note",
+      "text": "These outcomes were recorded from an isolated local test using synthetic data. No real property reservation was requested."
+    },
+    {
+      "seq": 2,
+      "kind": "consent",
+      "text": "Test operator authorized this sandbox booking intent.",
+      "request_id": "booking",
+      "tool": "rentwise.book"
+    },
+    {
+      "seq": 3,
+      "kind": "tool_call",
+      "text": "Create or reuse the same local sandbox intent.",
+      "call_id": "book-1",
+      "tool": "rentwise.book",
+      "request_id": "booking",
+      "side_effect": true
+    },
+    {
+      "seq": 4,
+      "kind": "tool_result",
+      "text": "One pending intent receipt; no external reservation.",
+      "call_id": "book-1",
+      "success": true,
+      "effect_id": "integration-booking-request"
+    },
+    {
+      "seq": 5,
+      "kind": "tool_call",
+      "text": "Create or reuse the same local sandbox intent.",
+      "call_id": "book-2",
+      "tool": "rentwise.book",
+      "request_id": "booking",
+      "side_effect": true
+    },
+    {
+      "seq": 6,
+      "kind": "tool_result",
+      "text": "One pending intent receipt; no external reservation.",
+      "call_id": "book-2",
+      "success": true,
+      "effect_id": "integration-booking-request"
+    },
+    {
+      "seq": 7,
+      "kind": "outcome",
+      "text": "Repeated calls retained one intent receipt.",
+      "evidence": "intent_deduplicated",
+      "success": true
+    },
+    {
+      "seq": 8,
+      "kind": "tool_call",
+      "text": "Reconcile after advancing the injected test clock.",
+      "call_id": "reconcile",
+      "tool": "rentwise.reconcile"
+    },
+    {
+      "seq": 9,
+      "kind": "tool_result",
+      "text": "sandbox_confirmed",
+      "call_id": "reconcile",
+      "success": true
+    },
+    {
+      "seq": 10,
+      "kind": "outcome",
+      "text": "The simulated delayed acknowledgement completed.",
+      "evidence": "sandbox_reconciled",
+      "success": true
+    }
+  ]
+}
