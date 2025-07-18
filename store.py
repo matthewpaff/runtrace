@@ -77,6 +77,7 @@ class Store:
         with self.connect() as db:return db.execute('DELETE FROM suites WHERE id=?',(suite_id,)).rowcount==1
     def execute_suite(self,suite_id,baseline_id=None):
         from suites import run_suite
+        if baseline_id is not None and (not isinstance(baseline_id,str) or not baseline_id):raise ValueError('Baseline ID must be nonempty text')
         suite=self.get_suite(suite_id)
         if not suite:return None
         result=run_suite(suite['dataset'])
