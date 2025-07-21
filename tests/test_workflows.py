@@ -24,6 +24,7 @@ class WorkflowTests(unittest.TestCase):
         followup=self.store.execute_suite(sid,baseline['id'])
         self.assertEqual(followup['result']['removed_cases'],['timeout'])
         self.assertEqual(followup['result']['new_cases'],[])
+        self.assertEqual(followup['result']['status'],'regression')
     def test_annotations_fork_and_cascade(self):
         r=self.store.save(simulate('baseline'));self.store.annotate(r['id'],2,'Inspect',True)
         with self.assertRaises(ValueError):self.store.annotate(r['id'],0)
