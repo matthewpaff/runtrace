@@ -43,3 +43,8 @@ class HTTPV2Tests(unittest.TestCase):
             for query in ('starred=yes','archived=1','q=a&q=b','unknown=x','offset=-1','limit=101'):
                 self.assertEqual(call('/api/search?'+query)[0],400,query)
             self.assertEqual(call('/api/search?starred=true&limit=1')[0],200)
+    def test_export_rejects_unknown_or_ambiguous_formats(self):
+        with local_server() as (call,port):
+            rid=call('/api/simulate','{"scenario":"baseline"}')[1]['id']
+            for suffix in ('?format=xml','?format=csv&format=json','?unknown=1'):
+                self.assertEqual(call('/api/runs/'+rid+'/export'+suffix)[0],400,suffix)
