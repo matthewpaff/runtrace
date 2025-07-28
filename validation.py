@@ -47,6 +47,8 @@ def validate(trace):
             if field in e and (not isinstance(e[field],str) or not e[field] or len(e[field])>500): raise ValueError('Invalid '+field)
         for field in ('side_effect','success'):
             if field in e and type(e[field]) is not bool: raise ValueError('Invalid '+field)
+        if 'success' in e and e['kind'] not in ('tool_result','outcome'):raise ValueError('Success belongs only to results and outcomes')
+        if 'effect_id' in e and e['kind']!='tool_result':raise ValueError('Effect IDs belong only to tool results')
         amount(e.get('cost',0),'declared event cost')
         if 'at_ms' in e:
             if type(e['at_ms']) is not int or not 0<=e['at_ms']<=86400000: raise ValueError('Invalid recorded time')
