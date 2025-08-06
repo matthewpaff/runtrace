@@ -129,6 +129,7 @@ def serve(port=8763, db_path=None):
                     rid=path.split('/')[3];action=path.split('/')[4]
                     if action=='annotate':
                         if set(data)-{'seq','note','bookmarked'} or 'seq' not in data:raise ValueError('Invalid annotation fields')
+                        if ('note' in data and not isinstance(data['note'],str)) or ('bookmarked' in data and type(data['bookmarked']) is not bool):raise ValueError('Invalid annotation values')
                         result=store.annotate(rid,**data)
                     else:
                         if set(data)-{'name','budget','policy'} or 'name' not in data:raise ValueError('Invalid fork fields')

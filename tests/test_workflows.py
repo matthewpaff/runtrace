@@ -31,6 +31,11 @@ class WorkflowTests(unittest.TestCase):
         fork=self.store.fork(r['id'],'Tight budget',{'steps':1,'cost':0})
         self.assertEqual(fork['metadata']['origin_id'],r['id']);self.assertEqual(self.store.get(r['id'])['summary']['status'],'pass');self.assertEqual(fork['summary']['status'],'review')
         self.store.delete(r['id']);self.assertEqual(self.store.annotations(r['id']),[])
+    def test_annotation_bookmark_update_keeps_existing_note(self):
+        run=self.store.save(simulate('baseline'))
+        self.store.annotate(run['id'],2,'Inspect this result',False)
+        updated=self.store.annotate(run['id'],2,bookmarked=True)
+        self.assertEqual(updated,[{'seq':2,'note':'Inspect this result','bookmarked':True}])
     def test_batch_invalid_and_duplicate_are_atomic(self):
         t=simulate('baseline')
         with self.assertRaises(ValueError):self.store.import_batch([t,{'name':'bad'}])
