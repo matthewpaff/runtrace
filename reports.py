@@ -9,7 +9,7 @@ from validation import validate
 
 
 
-SENSITIVE_KEYS={'authorization','password','secret','api_key','token'}
+SENSITIVE_KEYS={'authorization','password','secret','api_key','token','access_token','refresh_token','client_secret','private_key'}
 
 
 
