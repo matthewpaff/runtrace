@@ -29,3 +29,6 @@ class ReportTests(unittest.TestCase):
         with self.assertRaises(ValueError):run_suite({'name':'x','cases':[case]})
         case['expected_checks']={'Step budget':True}
         with self.assertRaises(ValueError):run_suite({'name':'x','cases':[case,case]})
+        with self.assertRaises(ValueError):run_suite({'name':'   ','cases':[case]})
+        other={**case,'name':' X '}
+        with self.assertRaises(ValueError):run_suite({'name':'x','cases':[case,other]})
