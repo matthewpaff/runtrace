@@ -27,3 +27,12 @@ class CLITests(unittest.TestCase):
             listed=self.run_cli(['list','--db',str(db)])
             self.assertEqual(listed.returncode,0)
             self.assertEqual(json.loads(listed.stdout)[0]['name'],simulate('baseline')['name'])
+    def test_show_retrieves_a_recording_and_reports_missing_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db'
+            imported=self.run_cli(['import','-','--db',str(db)],json.dumps(simulate('baseline')))
+            rid=json.loads(imported.stdout)['id']
+            shown=self.run_cli(['show',rid,'--db',str(db)])
+            self.assertEqual(shown.returncode,0)
+            self.assertEqual(json.loads(shown.stdout)['id'],rid)
+            self.assertEqual(self.run_cli(['show','missing','--db',str(db)]).returncode,2)

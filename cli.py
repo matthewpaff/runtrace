@@ -30,8 +30,13 @@ def main(argv=None):
     archive=sub.add_parser('archive-import');archive.add_argument('archive');archive.add_argument('--db',default='runtrace.sqlite3')
     suite=sub.add_parser('suite');suite.add_argument('dataset')
     listing=sub.add_parser('list');listing.add_argument('--db',default='runtrace.sqlite3')
+    show=sub.add_parser('show');show.add_argument('id');show.add_argument('--db',default='runtrace.sqlite3')
     args=parser.parse_args(argv)
     try:
+        if args.command=='show':
+            run=existing_store(args.db).get(args.id)
+            if run is None:raise ValueError('Run not found')
+            print(json.dumps(run,ensure_ascii=True,allow_nan=False));return 0
         if args.command=='list':
             rows=existing_store(args.db).list()
             print(json.dumps([{'id':r['id'],'name':r['trace']['name'],'created':r['created'],'status':r['summary']['status'],'tags':r['metadata']['tags'],'archived':r['metadata']['archived']} for r in rows]))
