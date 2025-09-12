@@ -31,8 +31,12 @@ def main(argv=None):
     suite=sub.add_parser('suite');suite.add_argument('dataset')
     listing=sub.add_parser('list');listing.add_argument('--db',default='runtrace.sqlite3')
     show=sub.add_parser('show');show.add_argument('id');show.add_argument('--db',default='runtrace.sqlite3')
+    search=sub.add_parser('search');search.add_argument('query');search.add_argument('--tag',default='');search.add_argument('--starred',action='store_true');search.add_argument('--archived',action='store_true');search.add_argument('--limit',type=int,default=20);search.add_argument('--offset',type=int,default=0);search.add_argument('--db',default='runtrace.sqlite3')
     args=parser.parse_args(argv)
     try:
+        if args.command=='search':
+            page=existing_store(args.db).search(args.query,tag=args.tag,starred=args.starred,archived=args.archived,limit=args.limit,offset=args.offset)
+            print(json.dumps({'total':page['total'],'offset':page['offset'],'limit':page['limit'],'ids':[r['id'] for r in page['items']]}));return 0
         if args.command=='show':
             run=existing_store(args.db).get(args.id)
             if run is None:raise ValueError('Run not found')
