@@ -32,8 +32,13 @@ def main(argv=None):
     listing=sub.add_parser('list');listing.add_argument('--db',default='runtrace.sqlite3')
     show=sub.add_parser('show');show.add_argument('id');show.add_argument('--db',default='runtrace.sqlite3')
     search=sub.add_parser('search');search.add_argument('query');search.add_argument('--tag',default='');search.add_argument('--starred',action='store_true');search.add_argument('--archived',action='store_true');search.add_argument('--limit',type=int,default=20);search.add_argument('--offset',type=int,default=0);search.add_argument('--db',default='runtrace.sqlite3')
+    exported=sub.add_parser('archive-export');exported.add_argument('id');exported.add_argument('--db',default='runtrace.sqlite3')
     args=parser.parse_args(argv)
     try:
+        if args.command=='archive-export':
+            archive=existing_store(args.db).export_recording(args.id)
+            if archive is None:raise ValueError('Run not found')
+            print(json.dumps(archive,ensure_ascii=True,allow_nan=False));return 0
         if args.command=='search':
             page=existing_store(args.db).search(args.query,tag=args.tag,starred=args.starred,archived=args.archived,limit=args.limit,offset=args.offset)
             print(json.dumps({'total':page['total'],'offset':page['offset'],'limit':page['limit'],'ids':[r['id'] for r in page['items']]}));return 0
