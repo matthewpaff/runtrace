@@ -54,3 +54,10 @@ class CLITests(unittest.TestCase):
             self.assertEqual(json.loads(archive.stdout)['archive_version'],1)
             restored=self.run_cli(['archive-import','-','--db',str(target)],archive.stdout)
             self.assertEqual(restored.returncode,0)
+    def test_corrupt_database_returns_structured_error(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'invalid.db';db.write_text('not sqlite',encoding='utf-8')
+            result=self.run_cli(['list','--db',str(db)])
+            self.assertEqual(result.returncode,2)
+            self.assertEqual(result.stdout,'')
+            self.assertIn('error',json.loads(result.stderr))

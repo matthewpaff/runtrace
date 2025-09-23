@@ -1,5 +1,5 @@
 ﻿"""Offline data-only command line tools. No trace content is executable."""
-import argparse,json,sys
+import argparse,json,sqlite3,sys
 from pathlib import Path
 from validation import validate
 from evaluation import evaluate
@@ -61,6 +61,6 @@ def main(argv=None):
         if args.command=='compare':
             result=compare(read_json(args.baseline),read_json(args.candidate));print(json.dumps(result,indent=2));return 1 if result['regressions'] else 0
         result=run_suite(read_json(args.dataset));print(json.dumps(result,indent=2));return 0 if result['status']=='pass' else 1
-    except (ValueError,TypeError,OSError) as error:print(json.dumps({'error':str(error)}),file=sys.stderr);return 2
+    except (ValueError,TypeError,OSError,sqlite3.DatabaseError) as error:print(json.dumps({'error':str(error)}),file=sys.stderr);return 2
 
 if __name__=='__main__':raise SystemExit(main())
