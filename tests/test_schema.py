@@ -3,6 +3,10 @@ from server import simulate
 from validation import validate,migrate
 
 class SchemaTests(unittest.TestCase):
+    def test_blank_trace_identity_is_rejected(self):
+        for field in ('name','scenario'):
+            t=simulate('baseline');t[field]='   '
+            with self.assertRaises(ValueError):validate(t)
     def test_version_migration_is_non_mutating(self):
         t=simulate('baseline'); old=dict(t); new=migrate(t)
         self.assertEqual(t,old);self.assertEqual(new['schema_version'],2)
