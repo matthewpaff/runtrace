@@ -36,6 +36,7 @@ def validate(trace):
     if not isinstance(policy,dict) or set(policy)-{'consent','tools'}: raise ValueError('Invalid policy')
     if policy.get('consent','request') not in ('request','single_use'): raise ValueError('Invalid consent policy')
     if 'tools' in policy and (not isinstance(policy['tools'],list) or len(policy['tools'])>100 or any(not isinstance(x,str) or not x or len(x)>500 for x in policy['tools'])): raise ValueError('Invalid tool allowlist')
+    if 'tools' in policy and (any(not tool.strip() for tool in policy['tools']) or len(set(policy['tools']))!=len(policy['tools'])):raise ValueError('Tool allowlist must contain unique nonblank names')
     events=trace.get('events')
     if not isinstance(events,list) or not 1<=len(events)<=1000: raise ValueError('Expected 1–1000 events')
     pending={}; finished=set(); cancelled=False
