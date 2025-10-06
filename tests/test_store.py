@@ -38,3 +38,7 @@ class StoreTests(unittest.TestCase):
         a=self.store.search(limit=2);b=self.store.search(offset=2,limit=2)
         self.assertEqual(a['total'],3);self.assertFalse({r['id'] for r in a['items']}&{r['id'] for r in b['items']})
         with self.assertRaises(ValueError):self.store.search(limit=0)
+    def test_search_can_find_a_recorded_scenario_label(self):
+        trace=simulate('baseline');trace['scenario']='handoff-qa-42'
+        run=self.store.save(trace)
+        self.assertEqual(self.store.search('HANDOFF-QA-42')['items'][0]['id'],run['id'])
