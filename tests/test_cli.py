@@ -61,3 +61,12 @@ class CLITests(unittest.TestCase):
             self.assertEqual(result.returncode,2)
             self.assertEqual(result.stdout,'')
             self.assertIn('error',json.loads(result.stderr))
+    def test_fingerprint_identifies_identical_recorded_traces(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db';raw=json.dumps(simulate('baseline'))
+            first=json.loads(self.run_cli(['import','-','--db',str(db)],raw).stdout)['id']
+            second=json.loads(self.run_cli(['import','-','--db',str(db)],raw).stdout)['id']
+            a=json.loads(self.run_cli(['fingerprint',first,'--db',str(db)]).stdout)['sha256']
+            b=json.loads(self.run_cli(['fingerprint',second,'--db',str(db)]).stdout)['sha256']
+            self.assertEqual(a,b);self.assertEqual(len(a),64)
+            self.assertEqual(self.run_cli(['fingerprint','missing','--db',str(db)]).returncode,2)
