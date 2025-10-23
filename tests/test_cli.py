@@ -1,0 +1,72 @@
+﻿import json,subprocess,sys,tempfile,unittest
+from pathlib import Path
+from server import simulate
+
+ROOT=Path(__file__).resolve().parents[1]
+class CLITests(unittest.TestCase):
+    def run_cli(self,args,stdin=None):return subprocess.run([sys.executable,str(ROOT/'cli.py'),*args],input=stdin,text=True,capture_output=True,cwd=ROOT)
+    def test_evaluate_stdin_pass_and_review_exit_codes(self):
+        good=self.run_cli(['evaluate','-'],json.dumps(simulate('baseline')));self.assertEqual(good.returncode,0);self.assertTrue(json.loads(good.stdout)['synthetic'])
+        bad=self.run_cli(['evaluate','-'],json.dumps(simulate('timeout')));self.assertEqual(bad.returncode,1)
+    def test_errors_are_json_and_do_not_emit_report(self):
+        for raw in ('null','{"x":1,"x":2}','x'*262145):
+            p=self.run_cli(['evaluate','-'],raw);self.assertEqual(p.returncode,2);self.assertEqual(p.stdout,'');self.assertIn('error',json.loads(p.stderr))
+        p=self.run_cli(['evaluate','missing-trace-file.json']);self.assertEqual(p.returncode,2)
+    def test_batch_import_persists_only_valid_data(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=str(Path(temp)/'runs.db');result=self.run_cli(['batch-import','-','--db',db],json.dumps([simulate('baseline'),simulate('timeout')]))
+            self.assertEqual(result.returncode,0);self.assertEqual(len(json.loads(result.stdout)['ids']),2)
+    def test_compare_stdin_ambiguity_has_clear_error(self):
+        p=self.run_cli(['compare','-','-'],'{}');self.assertEqual(p.returncode,2);self.assertIn('Only one',p.stderr)
+    def test_list_reads_existing_runs_without_creating_a_database(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db'
+            absent=self.run_cli(['list','--db',str(db)])
+            self.assertEqual(absent.returncode,2);self.assertFalse(db.exists())
+            self.assertEqual(self.run_cli(['import','-','--db',str(db)],json.dumps(simulate('baseline'))).returncode,0)
+            listed=self.run_cli(['list','--db',str(db)])
+            self.assertEqual(listed.returncode,0)
+            self.assertEqual(json.loads(listed.stdout)[0]['name'],simulate('baseline')['name'])
+    def test_show_retrieves_a_recording_and_reports_missing_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db'
+            imported=self.run_cli(['import','-','--db',str(db)],json.dumps(simulate('baseline')))
+            rid=json.loads(imported.stdout)['id']
+            shown=self.run_cli(['show',rid,'--db',str(db)])
+            self.assertEqual(shown.returncode,0)
+            self.assertEqual(json.loads(shown.stdout)['id'],rid)
+            self.assertEqual(self.run_cli(['show','missing','--db',str(db)]).returncode,2)
+    def test_search_filters_saved_recordings_without_loading_the_server(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db'
+            self.run_cli(['import','-','--db',str(db)],json.dumps(simulate('baseline')))
+            found=self.run_cli(['search','clean handoff','--db',str(db)])
+            self.assertEqual(found.returncode,0);self.assertEqual(json.loads(found.stdout)['total'],1)
+            self.assertEqual(json.loads(self.run_cli(['search','absent','--db',str(db)]).stdout)['total'],0)
+            self.assertEqual(self.run_cli(['search','clean','--limit','0','--db',str(db)]).returncode,2)
+    def test_archive_export_roundtrips_through_local_cli(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source=Path(temp)/'source.db';target=Path(temp)/'target.db'
+            imported=self.run_cli(['import','-','--db',str(source)],json.dumps(simulate('baseline')))
+            rid=json.loads(imported.stdout)['id']
+            archive=self.run_cli(['archive-export',rid,'--db',str(source)])
+            self.assertEqual(archive.returncode,0)
+            self.assertEqual(json.loads(archive.stdout)['archive_version'],1)
+            restored=self.run_cli(['archive-import','-','--db',str(target)],archive.stdout)
+            self.assertEqual(restored.returncode,0)
+    def test_corrupt_database_returns_structured_error(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'invalid.db';db.write_text('not sqlite',encoding='utf-8')
+            result=self.run_cli(['list','--db',str(db)])
+            self.assertEqual(result.returncode,2)
+            self.assertEqual(result.stdout,'')
+            self.assertIn('error',json.loads(result.stderr))
+    def test_fingerprint_identifies_identical_recorded_traces(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db';raw=json.dumps(simulate('baseline'))
+            first=json.loads(self.run_cli(['import','-','--db',str(db)],raw).stdout)['id']
+            second=json.loads(self.run_cli(['import','-','--db',str(db)],raw).stdout)['id']
+            a=json.loads(self.run_cli(['fingerprint',first,'--db',str(db)]).stdout)['sha256']
+            b=json.loads(self.run_cli(['fingerprint',second,'--db',str(db)]).stdout)['sha256']
+            self.assertEqual(a,b);self.assertEqual(len(a),64)
+            self.assertEqual(self.run_cli(['fingerprint','missing','--db',str(db)]).returncode,2)
