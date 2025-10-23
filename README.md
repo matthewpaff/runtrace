@@ -1,3 +1,8 @@
+> **Illustrative Git calendar:** 2025-01-06 through 2025-10-24, assigned November 6, 2026.
+> Actual development occurred in November 2026. These dates are simulated,
+> not evidence of historical work or employment. This supersedes older
+> statements below about actual Git dates. See [HISTORY.md](HISTORY.md).
+
 ﻿# Runtrace
 
 A local agent trace inspection and evaluation workbench. The dashboard combines a run explorer, recorded-event replay cursor, fault injection, deterministic checks, and side-by-side comparison. All bundled data is explicitly synthetic; sample costs are declared fixture values.
