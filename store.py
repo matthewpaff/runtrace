@@ -117,3 +117,45 @@ class Store:
         result=self.save(trace)
         with self.connect() as db:db.execute('UPDATE runs SET metadata=? WHERE id=?',(json.dumps({'origin_id':rid,'lineage':'inert policy/budget recording fork'}),result['id']))
         return self.get(result['id'])
+
+    def import_batch(self,traces):
+        import hashlib
+        if not isinstance(traces,list) or not 1<=len(traces)<=100:raise ValueError('Expected 1?100 traces')
+        canonical=[]
+        for trace in traces:
+            validate(trace);canonical.append(json.dumps(migrate(trace),sort_keys=True,separators=(',',':'),allow_nan=False))
+        fingerprints=[hashlib.sha256(t.encode()).hexdigest() for t in canonical]
+        if len(set(fingerprints))!=len(fingerprints):raise ValueError('Duplicate trace within batch')
+        ids=[]
+        with self.connect() as db:
+            for text in canonical:
+                rid=uuid.uuid4().hex[:12];ids.append(rid)
+                db.execute('INSERT INTO runs(id,created,trace) VALUES(?,?,?)',(rid,datetime.datetime.now(datetime.timezone.utc).isoformat(),text))
+        return [self.get(rid) for rid in ids]
+    def fingerprint(self,rid):
+        import hashlib
+        run=self.get(rid)
+        return hashlib.sha256(json.dumps(migrate(run['trace']),sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest() if run else None
+    def export_recording(self,rid):
+        run=self.get(rid)
+        if not run:return None
+        return {'archive_version':1,'trace':run['trace'],'metadata':run['metadata'],'cursor':run['cursor'],'annotations':self.annotations(rid)}
+    def import_recording(self,archive):
+        if not isinstance(archive,dict) or set(archive)!={'archive_version','trace','metadata','cursor','annotations'} or archive['archive_version']!=1:raise ValueError('Invalid recording archive')
+        validate(archive['trace']);meta=archive['metadata'];annotations=archive['annotations'];cursor=archive['cursor']
+        if not isinstance(meta,dict) or set(meta)-{'tags','notes','starred','archived','origin_id','lineage'}:raise ValueError('Invalid archive metadata')
+        if not isinstance(annotations,list) or len(annotations)>1000:raise ValueError('Invalid archive annotations')
+        # Validate in an isolated transaction-backed temporary database before any real writes.
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as temp:
+            test=Store(Path(temp)/'validation.db');saved=test.save(archive['trace']);test.update(saved['id'],{k:v for k,v in meta.items() if k in ('tags','notes','starred','archived')});test.checkpoint(saved['id'],cursor)
+            seen=set()
+            for annotation in annotations:
+                if not isinstance(annotation,dict) or set(annotation)!={'seq','note','bookmarked'} or annotation['seq'] in seen:raise ValueError('Invalid archive annotation')
+                seen.add(annotation['seq']);test.annotate(saved['id'],**annotation)
+        result=self.save(archive['trace']);rid=result['id']
+        with self.connect() as db:
+            db.execute('UPDATE runs SET metadata=?,cursor=? WHERE id=?',(json.dumps(meta),cursor,rid))
+            for a in annotations:db.execute('INSERT INTO event_notes VALUES(?,?,?,?)',(rid,a['seq'],a['note'],int(a['bookmarked'])))
+        return self.get(rid)
