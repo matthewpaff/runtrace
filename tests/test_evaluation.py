@@ -11,6 +11,7 @@ class EvaluationTests(unittest.TestCase):
     def test_single_use_consent_consumed_on_attempt(self):
         t=simulate('duplicate');t['policy']={'consent':'single_use'}
         t['events'][3]['kind']='consent';t['events'][3]['request_id']='release-42'
+        t['events'][3].pop('success');t['events'][3].pop('evidence')
         s=evaluate(t);self.assertEqual(s['checks'][1]['event_sequences'],[8])
     def test_tool_scoped_consent_and_allowlist(self):
         t=simulate('baseline');t['events'][4]['tool']='different';t['policy']={'tools':['manifest.read']}
