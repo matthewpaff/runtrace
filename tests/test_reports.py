@@ -12,6 +12,10 @@ class ReportTests(unittest.TestCase):
         value={'text':'Bearer abc.def secret-value','nested':[{'password':'private','memo':'secret-value'}]}
         result=redact(value,['secret-value']);self.assertNotIn('secret-value',str(result));self.assertNotIn('abc.def',str(result));self.assertEqual(value['nested'][0]['password'],'private')
         with self.assertRaises(ValueError):redact(value,[''])
+    def test_common_credential_fields_are_removed_recursively(self):
+        value={'access_token':'abc','nested':[{'refresh_token':'def','client_secret':'ghi','private_key':'pem'}]}
+        result=redact(value)
+        self.assertNotIn('abc',str(result));self.assertNotIn('def',str(result));self.assertNotIn('ghi',str(result));self.assertNotIn('pem',str(result))
     def test_comparison_reports_regression_and_improvement(self):
         a=simulate('baseline');b=simulate('timeout')
         self.assertIn('Expected evidence',compare(a,b)['regressions']);self.assertIn('Expected evidence',compare(b,a)['improvements'])
