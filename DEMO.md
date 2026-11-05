@@ -2,12 +2,16 @@
 
 Run `python server.py` from this repository. No packages are required.
 
-1. Start the workbench and open the baseline synthetic run. Inspect its six checks and recorded events.
+1. Start the workbench and open the baseline synthetic run. Inspect its eight checks and recorded events.
 2. Reset the replay cursor, play, pause, and inspect a tool result. Replay changes the view; it executes no external tools.
 3. Generate a timeout or rate-limit scenario. Compare the withheld delivery and missing evidence with the baseline.
 4. Generate a duplicate scenario. Distinct successful effect receipts under one request are flagged; a retry referring to the same receipt is not a duplicate effect.
 5. Lower the declared step or cost budget and generate another run. Inspect which check flags the supplied values.
-6. Import sample-trace.json. Imported traces are validated synthetic recordings; pass rates and costs are fixture results, not model benchmarks or bills.
+6. Generate `cancelled`, `unknown`, and `timed` scenarios. Compare explicit cancellation, an uncertain side-effect result, and recorded timing/usage. The workbench does not infer missing usage.
+7. Import `sample-trace.json`, then the booking and approval traces in `examples/`. The latter recordings came from local synthetic Rentwise and Papertrail workflows.
+8. Save a suite baseline, remove a case, and execute it again. The missing case is reported as a regression. Add an annotation to an event and export its recording archive; importing that archive preserves the note and replay cursor.
+
+Imported traces are validated synthetic recordings. Pass rates and costs are fixture results, not model benchmarks or bills.
 
 ## Review evidence
 
