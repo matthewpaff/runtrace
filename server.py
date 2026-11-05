@@ -40,9 +40,12 @@ def serve(port=8763, db_path=None):
         for scenario in ('baseline','timeout','duplicate'): store.save(simulate(scenario))
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args): pass
+        def local_host(self):
+            return self.headers.get('Host') in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'}
         def send(self,status,payload):
             body=json.dumps(payload,allow_nan=False).encode(); self.send_response(status); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
         def do_GET(self):
+            if not self.local_host():return self.send(403,{'error':'Nonlocal Host denied'})
             path=urlsplit(self.path).path
             if path=='/api/health': return self.send(200,{'status':'ok','mode':'synthetic-recorded'})
             if path=='/api/runs': return self.send(200,store.list())
@@ -65,6 +68,7 @@ def serve(port=8763, db_path=None):
             if path not in assets: return self.send(404,{'error':'Not found'})
             f=ROOT/'static'/assets[path]; body=f.read_bytes(); self.send_response(200); self.send_header('Content-Type',{'html':'text/html; charset=utf-8','css':'text/css','js':'text/javascript'}[f.suffix[1:]]); self.send_header('Content-Length',str(len(body))); self.send_header('X-Content-Type-Options','nosniff'); self.end_headers(); self.wfile.write(body)
         def do_POST(self):
+            if not self.local_host():return self.send(403,{'error':'Nonlocal Host denied'})
             try:
                 if self.headers.get('Origin') and self.headers['Origin'] != 'http://'+self.headers.get('Host',''): return self.send(403,{'error':'Cross-origin writes denied'})
                 length=int(self.headers.get('Content-Length','0'))
