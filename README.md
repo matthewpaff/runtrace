@@ -17,6 +17,18 @@ Open http://127.0.0.1:8763. The server binds only to loopback. Optional flags: `
 python -m unittest discover -s tests -v
 ```
 
+The offline CLI supports inspecting the same SQLite database without starting HTTP:
+
+```powershell
+python cli.py list --db runtrace.sqlite3
+python cli.py search "release" --tag review --db runtrace.sqlite3
+python cli.py show RUN_ID --db runtrace.sqlite3
+python cli.py archive-export RUN_ID --db runtrace.sqlite3 > run.json
+python cli.py archive-import run.json --db another.sqlite3
+```
+
+Read commands require an existing database and do not create one. An archive includes the trace, metadata, replay cursor, and event annotations; it contains only synthetic recorded data.
+
 ## What it does
 
 - Generate clean, timeout, rate-limit, duplicate-delivery, cancellation, uncertain-delivery, and recorded-timing scenarios.
