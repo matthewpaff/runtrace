@@ -36,3 +36,11 @@ class CLITests(unittest.TestCase):
             self.assertEqual(shown.returncode,0)
             self.assertEqual(json.loads(shown.stdout)['id'],rid)
             self.assertEqual(self.run_cli(['show','missing','--db',str(db)]).returncode,2)
+    def test_search_filters_saved_recordings_without_loading_the_server(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db'
+            self.run_cli(['import','-','--db',str(db)],json.dumps(simulate('baseline')))
+            found=self.run_cli(['search','clean handoff','--db',str(db)])
+            self.assertEqual(found.returncode,0);self.assertEqual(json.loads(found.stdout)['total'],1)
+            self.assertEqual(json.loads(self.run_cli(['search','absent','--db',str(db)]).stdout)['total'],0)
+            self.assertEqual(self.run_cli(['search','clean','--limit','0','--db',str(db)]).returncode,2)
