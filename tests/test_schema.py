@@ -34,3 +34,7 @@ class SchemaTests(unittest.TestCase):
     def test_outcome_cannot_claim_conflicting_success(self):
         t=simulate('baseline');t['events'][3]['status']='error'
         with self.assertRaises(ValueError):validate(t)
+    def test_result_assertions_cannot_appear_on_notes(self):
+        for field,value in (('success',True),('effect_id','receipt')):
+            t=simulate('baseline');t['events'][0][field]=value
+            with self.assertRaises(ValueError):validate(t)
