@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 from server import simulate
 from validation import validate,migrate
 
@@ -22,4 +22,11 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):validate(t)
     def test_conflicting_result_status(self):
         t=simulate('baseline');t['events'][2]['status']='error'
+        with self.assertRaises(ValueError):validate(t)
+
+    def test_cancelled_run_cannot_resume_external_actions(self):
+        t=simulate('baseline');t['events'][0]['kind']='cancelled'
+        with self.assertRaises(ValueError):validate(t)
+    def test_outcome_cannot_claim_conflicting_success(self):
+        t=simulate('baseline');t['events'][3]['status']='error'
         with self.assertRaises(ValueError):validate(t)
