@@ -9,7 +9,7 @@ MAX_IMPORT=262144
 from validation import validate
 from evaluation import evaluate
 from store import Store
-from reports import report_json, report_csv, redact
+from reports import report_json, report_csv, redact, trace_diff, compare
 from suites import run_suite
 from contracts import parse_json
 
@@ -88,7 +88,12 @@ def serve(port=8763, db_path=None):
                 if not 0<length<=MAX_IMPORT: raise ValueError('JSON payload must be 1–262144 bytes')
                 data=parse_json(self.rfile.read(length))
                 path=urlsplit(self.path).path
-                if path=='/api/batch':result=store.import_batch(data)
+                if path=='/api/compare':
+                    if not isinstance(data,dict) or set(data)!={'baseline','candidate'} or any(not isinstance(v,str) for v in data.values()):raise ValueError('Comparison requires baseline and candidate IDs')
+                    a=store.get(data['baseline']);b=store.get(data['candidate'])
+                    if not a or not b:return self.send(404,{'error':'Run not found'})
+                    result={'summary':compare(a['trace'],b['trace']),'calls':trace_diff(a['trace'],b['trace'])}
+                elif path=='/api/batch':result=store.import_batch(data)
                 elif path=='/api/archive/import':result=store.import_recording(data)
                 elif path=='/api/suites':result=store.save_suite(data)
                 elif re.fullmatch(r'/api/suites/[a-f0-9]{12}/(update|execute|delete)',path):
