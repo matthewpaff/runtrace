@@ -17,6 +17,10 @@ def read_json(path):
     if len(raw)>MAX_BYTES:raise ValueError('JSON file exceeds 256 KiB')
     return parse_json(raw)
 
+def existing_store(path):
+    if not Path(path).is_file():raise ValueError('Run database does not exist')
+    return Store(path)
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
     imp=sub.add_parser('import');imp.add_argument('trace');imp.add_argument('--db',default='runtrace.sqlite3')
@@ -25,8 +29,13 @@ def main(argv=None):
     batch=sub.add_parser('batch-import');batch.add_argument('traces');batch.add_argument('--db',default='runtrace.sqlite3')
     archive=sub.add_parser('archive-import');archive.add_argument('archive');archive.add_argument('--db',default='runtrace.sqlite3')
     suite=sub.add_parser('suite');suite.add_argument('dataset')
+    listing=sub.add_parser('list');listing.add_argument('--db',default='runtrace.sqlite3')
     args=parser.parse_args(argv)
     try:
+        if args.command=='list':
+            rows=existing_store(args.db).list()
+            print(json.dumps([{'id':r['id'],'name':r['trace']['name'],'created':r['created'],'status':r['summary']['status'],'tags':r['metadata']['tags'],'archived':r['metadata']['archived']} for r in rows]))
+            return 0
         if args.command=='batch-import':
             result=Store(args.db).import_batch(read_json(args.traces));print(json.dumps({'ids':[r['id'] for r in result]}));return 0
         if args.command=='archive-import':

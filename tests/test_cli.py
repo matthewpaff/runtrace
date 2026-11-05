@@ -18,3 +18,12 @@ class CLITests(unittest.TestCase):
             self.assertEqual(result.returncode,0);self.assertEqual(len(json.loads(result.stdout)['ids']),2)
     def test_compare_stdin_ambiguity_has_clear_error(self):
         p=self.run_cli(['compare','-','-'],'{}');self.assertEqual(p.returncode,2);self.assertIn('Only one',p.stderr)
+    def test_list_reads_existing_runs_without_creating_a_database(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db=Path(temp)/'runs.db'
+            absent=self.run_cli(['list','--db',str(db)])
+            self.assertEqual(absent.returncode,2);self.assertFalse(db.exists())
+            self.assertEqual(self.run_cli(['import','-','--db',str(db)],json.dumps(simulate('baseline'))).returncode,0)
+            listed=self.run_cli(['list','--db',str(db)])
+            self.assertEqual(listed.returncode,0)
+            self.assertEqual(json.loads(listed.stdout)[0]['name'],simulate('baseline')['name'])
