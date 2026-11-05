@@ -25,9 +25,14 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(ValueError):self.store.checkpoint(r['id'],n)
     def test_invalid_metadata_does_not_mutate_run(self):
         r=self.store.save(simulate('baseline'))
-        for changes in ({'starred':1},{'tags':['']},{'notes':[]},{'trace':{}}):
+        for changes in ({'starred':1},{'tags':['']},{'tags':['   ']},{'notes':[]},{'trace':{}}):
             with self.assertRaises(ValueError):self.store.update(r['id'],changes)
         self.assertEqual(self.store.get(r['id'])['metadata'],r['metadata'])
+    def test_tags_are_normalized_for_search(self):
+        run=self.store.save(simulate('baseline'))
+        self.store.update(run['id'],{'tags':[' Release ','release','REVIEW']})
+        self.assertEqual(self.store.get(run['id'])['metadata']['tags'],['release','review'])
+        self.assertEqual(self.store.search(tag=' RELEASE ')['total'],1)
     def test_pagination_is_stable_and_validated(self):
         for i in range(3):self.store.save(simulate('baseline'))
         a=self.store.search(limit=2);b=self.store.search(offset=2,limit=2)

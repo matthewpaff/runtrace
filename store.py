@@ -35,7 +35,7 @@ class Store:
         return [self.get(rid) for rid in ids]
     def update(self,rid,changes):
         if not isinstance(changes,dict) or set(changes)-{'tags','notes','starred','archived'}:raise ValueError('Invalid metadata fields')
-        if 'tags' in changes and (not isinstance(changes['tags'],list) or len(changes['tags'])>20 or any(not isinstance(t,str) or not 1<=len(t)<=40 for t in changes['tags'])):raise ValueError('Invalid tags')
+        if 'tags' in changes and (not isinstance(changes['tags'],list) or len(changes['tags'])>20 or any(not isinstance(t,str) or not 1<=len(t.strip())<=40 for t in changes['tags'])):raise ValueError('Invalid tags')
         if 'notes' in changes and (not isinstance(changes['notes'],str) or len(changes['notes'])>8000):raise ValueError('Invalid notes')
         for key in ('starred','archived'):
             if key in changes and type(changes[key]) is not bool:raise ValueError('Invalid '+key)
@@ -43,7 +43,7 @@ class Store:
             row=db.execute('SELECT metadata FROM runs WHERE id=?',(rid,)).fetchone()
             if not row:return None
             metadata=json.loads(row[0]);metadata.update(changes)
-            if 'tags' in metadata:metadata['tags']=list(dict.fromkeys(metadata['tags']))
+            if 'tags' in metadata:metadata['tags']=list(dict.fromkeys(t.strip().casefold() for t in metadata['tags']))
             db.execute('UPDATE runs SET metadata=? WHERE id=?',(json.dumps(metadata),rid))
         return self.get(rid)
     def checkpoint(self,rid,cursor):
@@ -58,6 +58,7 @@ class Store:
             return db.execute('DELETE FROM runs WHERE id=?',(rid,)).rowcount==1
     def search(self,query='',tag='',starred=False,archived=False,offset=0,limit=20):
         if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=100:raise ValueError('Invalid pagination')
+        tag=tag.strip().casefold()
         rows=[r for r in self.list() if r['metadata']['archived']==archived and (not starred or r['metadata']['starred']) and (not tag or tag in r['metadata']['tags']) and query.casefold() in (r['trace']['name']+' '+r['metadata']['notes']+' '+' '.join(r['metadata']['tags'])).casefold()]
         return {'items':rows[offset:offset+limit],'total':len(rows),'offset':offset,'limit':limit}
 
