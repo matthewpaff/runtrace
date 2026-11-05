@@ -14,7 +14,8 @@ class Store:
                 if name not in columns:db.execute(f'ALTER TABLE runs ADD COLUMN {name} {definition}')
             db.execute('CREATE TABLE IF NOT EXISTS suites(id TEXT PRIMARY KEY,name TEXT NOT NULL,dataset TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS suite_history(id TEXT PRIMARY KEY,suite_id TEXT NOT NULL,created TEXT NOT NULL,result TEXT NOT NULL,baseline_id TEXT)')
-            db.execute('PRAGMA user_version=3')
+            db.execute('CREATE TABLE IF NOT EXISTS event_notes(run_id TEXT NOT NULL,seq INTEGER NOT NULL,note TEXT NOT NULL,bookmarked INTEGER NOT NULL,PRIMARY KEY(run_id,seq))')
+            db.execute('PRAGMA user_version=4')
     @contextmanager
     def connect(self):
         db=sqlite3.connect(self.path)
@@ -52,7 +53,9 @@ class Store:
         with self.connect() as db:db.execute('UPDATE runs SET cursor=? WHERE id=?',(cursor,rid))
         return self.get(rid)
     def delete(self,rid):
-        with self.connect() as db:return db.execute('DELETE FROM runs WHERE id=?',(rid,)).rowcount==1
+        with self.connect() as db:
+            db.execute('DELETE FROM event_notes WHERE run_id=?',(rid,))
+            return db.execute('DELETE FROM runs WHERE id=?',(rid,)).rowcount==1
     def search(self,query='',tag='',starred=False,archived=False,offset=0,limit=20):
         if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=100:raise ValueError('Invalid pagination')
         rows=[r for r in self.list() if r['metadata']['archived']==archived and (not starred or r['metadata']['starred']) and (not tag or tag in r['metadata']['tags']) and query.casefold() in (r['trace']['name']+' '+r['metadata']['notes']+' '+' '.join(r['metadata']['tags'])).casefold()]
@@ -92,3 +95,14 @@ class Store:
     def suite_history(self,suite_id):
         with self.connect() as db:ids=[r[0] for r in db.execute('SELECT id FROM suite_history WHERE suite_id=? ORDER BY created DESC,id DESC',(suite_id,))]
         return [self.suite_execution(eid) for eid in ids]
+
+    def annotate(self,rid,seq,note='',bookmarked=False):
+        run=self.get(rid)
+        if not run:return None
+        if type(seq) is not int or not 1<=seq<=len(run['trace']['events']):raise ValueError('Invalid event sequence')
+        if not isinstance(note,str) or len(note)>4000 or type(bookmarked) is not bool:raise ValueError('Invalid annotation')
+        with self.connect() as db:db.execute('INSERT INTO event_notes VALUES(?,?,?,?) ON CONFLICT(run_id,seq) DO UPDATE SET note=excluded.note,bookmarked=excluded.bookmarked',(rid,seq,note,int(bookmarked)))
+        return self.annotations(rid)
+    def annotations(self,rid):
+        with self.connect() as db:rows=db.execute('SELECT seq,note,bookmarked FROM event_notes WHERE run_id=? ORDER BY seq',(rid,)).fetchall()
+        return [{'seq':r[0],'note':r[1],'bookmarked':bool(r[2])} for r in rows]
