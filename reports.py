@@ -1,12 +1,12 @@
-﻿"""Stable report exports and opt-in recursive literal redaction."""
+"""Stable report exports and opt-in recursive literal redaction."""
 import csv,io,json,re
-from copy import deepcopy
+from decimal import Decimal
 from evaluation import evaluate
 
 SENSITIVE_KEYS={'authorization','password','secret','api_key','token'}
 
 def redact(value,secrets=()):
-    if not isinstance(secrets,(list,tuple)) or len(secrets)>100 or any(not isinstance(s,str) or not s or len(s)>1000 for s in secrets):raise ValueError('Redactions must be 1–1000 character literal strings')
+    if not isinstance(secrets,(list,tuple)) or len(secrets)>100 or any(not isinstance(s,str) or not s or len(s)>1000 for s in secrets):raise ValueError('Redactions must be 1�1000 character literal strings')
     def walk(v):
         if isinstance(v,dict):return {k:('[REDACTED]' if k.casefold() in SENSITIVE_KEYS else walk(x)) for k,x in v.items()}
         if isinstance(v,list):return [walk(x) for x in v]
@@ -35,4 +35,4 @@ def report_csv(trace,secrets=()):
 def compare(left,right):
     a=evaluate(left);b=evaluate(right);old={c['name']:c for c in a['checks']}
     changes=[{'name':c['name'],'before':old.get(c['name'],{}).get('pass'),'after':c['pass']} for c in b['checks'] if old.get(c['name'],{}).get('pass')!=c['pass']]
-    return {'baseline':left['name'],'candidate':right['name'],'regressions':[c['name'] for c in changes if c['before'] is True and c['after'] is False],'improvements':[c['name'] for c in changes if c['before'] is False and c['after'] is True],'changes':changes,'step_delta':b['steps']-a['steps'],'cost_delta':str(__import__('decimal').Decimal(b['cost_decimal'])-__import__('decimal').Decimal(a['cost_decimal']))}
+    return {'baseline':left['name'],'candidate':right['name'],'regressions':[c['name'] for c in changes if c['before'] is True and c['after'] is False],'improvements':[c['name'] for c in changes if c['before'] is False and c['after'] is True],'changes':changes,'step_delta':b['steps']-a['steps'],'cost_delta':str(Decimal(b['cost_decimal'])-Decimal(a['cost_decimal']))}
