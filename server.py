@@ -50,6 +50,11 @@ def serve(port=8763, db_path=None):
             path=urlsplit(self.path).path
             if path=='/api/health': return self.send(200,{'status':'ok','mode':'synthetic-recorded'})
             if path=='/api/runs': return self.send(200,store.list())
+            if path=='/api/executions':
+                try:
+                    q=parse_qs(urlsplit(self.path).query)
+                    return self.send(200,store.execution_history(offset=int(q.get('offset',['0'])[0]),limit=int(q.get('limit',['20'])[0]),status=q.get('status',[None])[0]))
+                except ValueError as error:return self.send(400,{'error':str(error)})
             if path=='/api/suites':return self.send(200,store.list_suites())
             match=re.fullmatch(r'/api/suites/([a-f0-9]{12})(?:/(history))?',path)
             if match:
