@@ -13,6 +13,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(second['result']['case_regressions'],['baseline']);self.assertEqual(self.store.suite_execution(first['id'])['result']['status'],'pass')
         other=self.store.save_suite(dataset)
         with self.assertRaises(ValueError):self.store.execute_suite(other['id'],first['id'])
+    def test_suite_baseline_reports_removed_cases(self):
+        first_case={'name':'baseline','trace':simulate('baseline'),'expected_checks':{'Expected evidence':True}}
+        second_case={'name':'timeout','trace':simulate('timeout'),'expected_checks':{'Expected evidence':False}}
+        dataset={'name':'Release','cases':[first_case,second_case]}
+        sid=self.store.save_suite(dataset)['id'];baseline=self.store.execute_suite(sid)
+        self.store.save_suite({'name':'Release','cases':[first_case]},sid)
+        followup=self.store.execute_suite(sid,baseline['id'])
+        self.assertEqual(followup['result']['removed_cases'],['timeout'])
+        self.assertEqual(followup['result']['new_cases'],[])
     def test_annotations_fork_and_cascade(self):
         r=self.store.save(simulate('baseline'));self.store.annotate(r['id'],2,'Inspect',True)
         with self.assertRaises(ValueError):self.store.annotate(r['id'],0)

@@ -86,6 +86,7 @@ class Store:
             prior={c['name']:c['pass'] for c in baseline['result']['cases']}
             result['case_regressions']=[c['name'] for c in result['cases'] if prior.get(c['name']) is True and not c['pass']]
             result['new_cases']=[c['name'] for c in result['cases'] if c['name'] not in prior]
+            result['removed_cases']=[name for name in prior if name not in {c['name'] for c in result['cases']}]
         eid=uuid.uuid4().hex[:12]
         with self.connect() as db:db.execute('INSERT INTO suite_history VALUES(?,?,?,?,?)',(eid,suite_id,datetime.datetime.now(datetime.timezone.utc).isoformat(),json.dumps(result,allow_nan=False),baseline_id))
         return self.suite_execution(eid)
