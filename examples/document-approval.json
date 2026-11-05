@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "name": "Papertrail: approved local task and rejected replay",
+  "scenario": "local-workflow-integration",
+  "synthetic": true,
+  "budget": {
+    "steps": 8,
+    "cost": "0.00"
+  },
+  "expected": [
+    "task_created",
+    "replay_rejected",
+    "workspace_isolated"
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "kind": "note",
+      "text": "Recorded from a temporary local document workspace with synthetic notes and selectable demo identities."
+    },
+    {
+      "seq": 2,
+      "kind": "consent",
+      "text": "Test operator approved a single personal sandbox task.",
+      "request_id": "task",
+      "tool": "papertrail.approve"
+    },
+    {
+      "seq": 3,
+      "kind": "tool_call",
+      "text": "Consume the owned pending proposal.",
+      "call_id": "approve",
+      "tool": "papertrail.approve",
+      "request_id": "task",
+      "side_effect": true
+    },
+    {
+      "seq": 4,
+      "kind": "tool_result",
+      "text": "One task record created.",
+      "call_id": "approve",
+      "success": true,
+      "effect_id": "1"
+    },
+    {
+      "seq": 5,
+      "kind": "outcome",
+      "text": "A local task was persisted.",
+      "evidence": "task_created",
+      "success": true
+    },
+    {
+      "seq": 6,
+      "kind": "tool_call",
+      "text": "Try replaying the consumed approval.",
+      "call_id": "replay",
+      "tool": "papertrail.approve",
+      "request_id": "task",
+      "side_effect": true
+    },
+    {
+      "seq": 7,
+      "kind": "tool_result",
+      "text": "Replay rejected without a second task.",
+      "call_id": "replay",
+      "success": false
+    },
+    {
+      "seq": 8,
+      "kind": "outcome",
+      "text": "Replay denial verified by the test.",
+      "evidence": "replay_rejected",
+      "success": true
+    },
+    {
+      "seq": 9,
+      "kind": "outcome",
+      "text": "Foreign workspace query abstained.",
+      "evidence": "workspace_isolated",
+      "success": true
+    }
+  ]
+}
