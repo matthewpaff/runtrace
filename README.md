@@ -7,7 +7,7 @@ A local agent trace inspection and evaluation workbench. The dashboard combines 
 Python 3.10+; no packages, build step, API keys, or network services required.
 
 ```powershell
-cd showcase/runtrace
+cd runtrace
 python server.py
 ```
 
@@ -40,3 +40,7 @@ A future model adapter could convert structured, redacted application telemetry 
 ## Limits
 
 This is an inspection lab, not a live LLM integration or production security boundary. Budgets evaluate saved calls and declared dollar costs after a fixture runs; they do not stop an external agent or measure real tokens/billing. The synthetic runner never invokes external tools. Consent and success are assertions in the trace, not independently verified proof. Duplicate detection uses successful results with matching request IDs and distinct effect IDs; identical receipts are treated as idempotent retries. A separate check flags missing receipt identifiers. These remain recorded assertions, not independent proof of external state. Evidence checks match identifiers, not semantic truth. Comparison is descriptive, not a benchmark or statistical performance claim. There is no authentication, multi-user isolation, deletion UI, streaming ingestion, or deployment setup. Keep the server local and use only non-sensitive trace data.
+
+## Demo and review
+
+See [DEMO.md](DEMO.md) for a repeatable walkthrough and the distinction between measured checks and simulated records. See [HISTORY.md](HISTORY.md) for project provenance.
