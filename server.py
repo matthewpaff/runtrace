@@ -86,8 +86,10 @@ def serve(port=8763, db_path=None):
                 item=store.get(match[1])
                 if not item:return self.send(404,{'error':'Run not found'})
                 if match[2]:
-                    q=parse_qs(urlsplit(self.path).query);fmt=q.get('format',['json'])[0]
-                    if fmt not in ('json','csv'):return self.send(400,{'error':'Unknown export format'})
+                    try:
+                        q=query_fields(urlsplit(self.path).query,{'format'});fmt=q.get('format',['json'])[0]
+                        if fmt not in ('json','csv'):raise ValueError('Unknown export format')
+                    except ValueError as error:return self.send(400,{'error':str(error)})
                     body=(report_csv if fmt=='csv' else report_json)(item['trace']).encode()
                     self.send_response(200);self.send_header('Content-Type','text/csv; charset=utf-8' if fmt=='csv' else 'application/json');self.send_header('Content-Disposition','attachment; filename="runtrace-report.'+fmt+'"');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
                 return self.send(200,item)
