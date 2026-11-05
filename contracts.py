@@ -11,7 +11,16 @@ def unique_pairs(pairs):
 
 def parse_json(raw):
     if not isinstance(raw,bytes) or not 0<len(raw)<=MAX_BYTES:raise ValueError('JSON payload must be 1–262144 bytes')
-    return json.loads(raw.decode('utf-8-sig'),object_pairs_hook=unique_pairs,parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Nonfinite JSON number')))
+    try:
+        value=json.loads(raw.decode('utf-8-sig'),object_pairs_hook=unique_pairs,parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Nonfinite JSON number')))
+    except (RecursionError,UnicodeDecodeError) as error:raise ValueError('JSON nesting or encoding limit exceeded') from error
+    stack=[(value,0)]
+    while stack:
+        item,depth=stack.pop()
+        if depth>32:raise ValueError('JSON nesting exceeds 32 levels')
+        if isinstance(item,dict):stack.extend((v,depth+1) for v in item.values())
+        elif isinstance(item,list):stack.extend((v,depth+1) for v in item)
+    return value
 
 def query_fields(query,allowed):
     from urllib.parse import parse_qs
