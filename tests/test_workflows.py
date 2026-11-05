@@ -55,3 +55,9 @@ class WorkflowTests(unittest.TestCase):
         r=self.store.save(simulate('baseline'));archive=self.store.export_recording(r['id']);archive['metadata']['origin_id']={'unexpected':'object'}
         with self.assertRaises(ValueError):self.store.import_recording(archive)
         self.assertEqual(len(self.store.list()),1)
+    def test_imported_archive_tags_use_normalized_search_form(self):
+        run=self.store.save(simulate('baseline'));archive=self.store.export_recording(run['id'])
+        archive['metadata']['tags']=[' Release ','RELEASE']
+        imported=self.store.import_recording(archive)
+        self.assertEqual(imported['metadata']['tags'],['release'])
+        self.assertEqual(self.store.search(tag='Release')['total'],1)

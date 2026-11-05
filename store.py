@@ -159,7 +159,8 @@ class Store:
         import tempfile
         from pathlib import Path
         with tempfile.TemporaryDirectory() as temp:
-            test=Store(Path(temp)/'validation.db');saved=test.save(archive['trace']);test.update(saved['id'],{k:v for k,v in meta.items() if k in ('tags','notes','starred','archived')});test.checkpoint(saved['id'],cursor)
+            test=Store(Path(temp)/'validation.db');saved=test.save(archive['trace']);validated=test.update(saved['id'],{k:v for k,v in meta.items() if k in ('tags','notes','starred','archived')});test.checkpoint(saved['id'],cursor)
+            meta={**meta,**{k:validated['metadata'][k] for k in ('tags','notes','starred','archived')}}
             seen=set()
             for annotation in annotations:
                 if not isinstance(annotation,dict) or set(annotation)!={'seq','note','bookmarked'} or annotation['seq'] in seen:raise ValueError('Invalid archive annotation')
