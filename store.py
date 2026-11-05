@@ -59,7 +59,7 @@ class Store:
     def search(self,query='',tag='',starred=False,archived=False,offset=0,limit=20):
         if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=100:raise ValueError('Invalid pagination')
         tag=tag.strip().casefold()
-        rows=[r for r in self.list() if r['metadata']['archived']==archived and (not starred or r['metadata']['starred']) and (not tag or tag in r['metadata']['tags']) and query.casefold() in (r['trace']['name']+' '+r['metadata']['notes']+' '+' '.join(r['metadata']['tags'])).casefold()]
+        rows=[r for r in self.list() if r['metadata']['archived']==archived and (not starred or r['metadata']['starred']) and (not tag or tag in r['metadata']['tags']) and query.casefold() in (r['trace']['name']+' '+r['trace']['scenario']+' '+r['metadata']['notes']+' '+' '.join(r['metadata']['tags'])).casefold()]
         return {'items':rows[offset:offset+limit],'total':len(rows),'offset':offset,'limit':limit}
 
     def save_suite(self,dataset,suite_id=None):
