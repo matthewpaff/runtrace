@@ -44,3 +44,13 @@ class CLITests(unittest.TestCase):
             self.assertEqual(found.returncode,0);self.assertEqual(json.loads(found.stdout)['total'],1)
             self.assertEqual(json.loads(self.run_cli(['search','absent','--db',str(db)]).stdout)['total'],0)
             self.assertEqual(self.run_cli(['search','clean','--limit','0','--db',str(db)]).returncode,2)
+    def test_archive_export_roundtrips_through_local_cli(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source=Path(temp)/'source.db';target=Path(temp)/'target.db'
+            imported=self.run_cli(['import','-','--db',str(source)],json.dumps(simulate('baseline')))
+            rid=json.loads(imported.stdout)['id']
+            archive=self.run_cli(['archive-export',rid,'--db',str(source)])
+            self.assertEqual(archive.returncode,0)
+            self.assertEqual(json.loads(archive.stdout)['archive_version'],1)
+            restored=self.run_cli(['archive-import','-','--db',str(target)],archive.stdout)
+            self.assertEqual(restored.returncode,0)
