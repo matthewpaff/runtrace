@@ -19,7 +19,7 @@ class SchemaTests(unittest.TestCase):
         del t['events'][1]['at_ms'];t['events'][0]['usage']={'input_tokens':True,'output_tokens':1}
         with self.assertRaises(ValueError):validate(t)
     def test_invalid_policy_and_event_discriminants(self):
-        for policy in ({'consent':'global'},{'tools':['']},{'extra':True}):
+        for policy in ({'consent':'global'},{'tools':['']},{'tools':['manifest.read','manifest.read']},{'tools':['   ']},{'extra':True}):
             t=simulate('baseline');t['policy']=policy
             with self.assertRaises(ValueError):validate(t)
         t=simulate('baseline');t['events'][0]['kind']=[]
