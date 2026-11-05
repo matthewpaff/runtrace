@@ -48,3 +48,11 @@ class HTTPV2Tests(unittest.TestCase):
             rid=call('/api/simulate','{"scenario":"baseline"}')[1]['id']
             for suffix in ('?format=xml','?format=csv&format=json','?unknown=1'):
                 self.assertEqual(call('/api/runs/'+rid+'/export'+suffix)[0],400,suffix)
+    def test_simulation_routes_preserve_uncertainty_and_recorded_usage(self):
+        with local_server() as (call,port):
+            for scenario,outcome in (('cancelled','cancelled'),('unknown','recorded'),('timed','recorded')):
+                status,run=call('/api/simulate',json.dumps({'scenario':scenario}))
+                self.assertEqual(status,201)
+                self.assertEqual(run['summary']['outcome'],outcome)
+                self.assertEqual(run['summary']['usage_recorded'],scenario=='timed')
+                self.assertEqual(call('/api/runs/'+run['id'])[1]['trace']['scenario'],scenario)
