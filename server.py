@@ -50,6 +50,17 @@ def serve(port=8763, db_path=None):
             path=urlsplit(self.path).path
             if path=='/api/health': return self.send(200,{'status':'ok','mode':'synthetic-recorded'})
             if path=='/api/runs': return self.send(200,store.list())
+            if path=='/api/suites':return self.send(200,store.list_suites())
+            match=re.fullmatch(r'/api/suites/([a-f0-9]{12})(?:/(history))?',path)
+            if match:
+                suite=store.get_suite(match[1])
+                if not suite:return self.send(404,{'error':'Suite not found'})
+                return self.send(200,store.suite_history(match[1]) if match[2] else suite)
+            match=re.fullmatch(r'/api/runs/([a-f0-9]{12})/(annotations|archive)',path)
+            if match:
+                run=store.get(match[1])
+                if not run:return self.send(404,{'error':'Run not found'})
+                return self.send(200,store.annotations(match[1]) if match[2]=='annotations' else store.export_recording(match[1]))
             if path=='/api/search':
                 try:
                     q=parse_qs(urlsplit(self.path).query)
@@ -77,7 +88,31 @@ def serve(port=8763, db_path=None):
                 if not 0<length<=MAX_IMPORT: raise ValueError('JSON payload must be 1–262144 bytes')
                 data=parse_json(self.rfile.read(length))
                 path=urlsplit(self.path).path
-                if path=='/api/suite':result=run_suite(data)
+                if path=='/api/batch':result=store.import_batch(data)
+                elif path=='/api/archive/import':result=store.import_recording(data)
+                elif path=='/api/suites':result=store.save_suite(data)
+                elif re.fullmatch(r'/api/suites/[a-f0-9]{12}/(update|execute|delete)',path):
+                    if not isinstance(data,dict):raise ValueError('Expected object')
+                    sid=path.split('/')[3];action=path.split('/')[4]
+                    if not store.get_suite(sid):return self.send(404,{'error':'Suite not found'})
+                    if action=='update':result=store.save_suite(data,sid)
+                    elif action=='execute':
+                        if set(data)-{'baseline_id'}:raise ValueError('Unknown execution fields')
+                        result=store.execute_suite(sid,data.get('baseline_id'))
+                    else:
+                        if data!={'confirm':True}:raise ValueError('Deletion requires confirm=true')
+                        result={'deleted':sid,'history_retained':True} if store.delete_suite(sid) else None
+                elif re.fullmatch(r'/api/runs/[a-f0-9]{12}/(annotate|fork)',path):
+                    if not isinstance(data,dict):raise ValueError('Expected object')
+                    rid=path.split('/')[3];action=path.split('/')[4]
+                    if action=='annotate':
+                        if set(data)-{'seq','note','bookmarked'} or 'seq' not in data:raise ValueError('Invalid annotation fields')
+                        result=store.annotate(rid,**data)
+                    else:
+                        if set(data)-{'name','budget','policy'} or 'name' not in data:raise ValueError('Invalid fork fields')
+                        result=store.fork(rid,**data)
+                    if result is None:return self.send(404,{'error':'Run not found'})
+                elif path=='/api/suite':result=run_suite(data)
                 elif path=='/api/export':
                     if not isinstance(data,dict) or set(data)-{'id','redactions'} or not isinstance(data.get('id'),str):raise ValueError('Export requires a run ID and optional literal redactions')
                     run=store.get(data['id'])
