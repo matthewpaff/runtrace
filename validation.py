@@ -60,6 +60,8 @@ def validate(trace):
         if e['kind']=='cancelled':
             if pending:raise ValueError('Resolve pending calls with cancelled results before cancelling the run')
             cancelled=True
+        elif cancelled and e['kind'] in ('outcome','consent'):
+            raise ValueError('Cancelled runs cannot record later consent or outcomes')
         if e['kind']=='tool_call':
             if cancelled:raise ValueError('Tool call after run cancellation')
             cid=e.get('call_id')
