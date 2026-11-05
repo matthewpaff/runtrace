@@ -100,10 +100,13 @@ class Store:
         with self.connect() as db:ids=[r[0] for r in db.execute('SELECT id FROM suite_history WHERE suite_id=? ORDER BY created DESC,id DESC LIMIT ? OFFSET ?',(suite_id,limit,offset))]
         return [self.suite_execution(eid) for eid in ids]
 
-    def annotate(self,rid,seq,note='',bookmarked=False):
+    def annotate(self,rid,seq,note=None,bookmarked=None):
         run=self.get(rid)
         if not run:return None
         if type(seq) is not int or not 1<=seq<=len(run['trace']['events']):raise ValueError('Invalid event sequence')
+        current=next((item for item in self.annotations(rid) if item['seq']==seq),None)
+        if note is None:note=current['note'] if current else ''
+        if bookmarked is None:bookmarked=current['bookmarked'] if current else False
         if not isinstance(note,str) or len(note)>4000 or type(bookmarked) is not bool:raise ValueError('Invalid annotation')
         with self.connect() as db:db.execute('INSERT INTO event_notes VALUES(?,?,?,?) ON CONFLICT(run_id,seq) DO UPDATE SET note=excluded.note,bookmarked=excluded.bookmarked',(rid,seq,note,int(bookmarked)))
         return self.annotations(rid)
